@@ -1,0 +1,1 @@
+docker build -f ./Dockerfile -t aimilefth/wan2-1-t2v-docker:1.3b --push .
