@@ -1,40 +1,59 @@
 # Use an NVIDIA CUDA base image for GPU support
-FROM nvidia/cuda:12.8.0-devel-ubuntu24.04
+FROM nvidia/cuda:12.4.0-devel-ubuntu22.04
 
-# Install system packages: Python3, pip, and git
+# Install Python 3.10, development tools, and other dependencies
 RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
+    python3.10 \
+    python3.10-dev \
+    python3.10-venv \
+    python3.10-distutils \
     git \
-    python3-packaging \
+    curl \
+    libgl1 \ 
+    ffmpeg \
+    libsm6 \
+    libxext6 \
     && rm -rf /var/lib/apt/lists/*
 
-# (Optional) Create a python symlink for convenience
-RUN ln -s /usr/bin/python3 /usr/bin/python
+# Install pip for Python 3.10
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10
 
-# Set working directory
+# Force the default python to point to Python 3.10
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
+
+# Set the working directory
 WORKDIR /app
 
-# Clone the WAN-AI repository
-RUN git clone https://github.com/Wan-Video/Wan2.1.git && \
-    cd Wan2.1 && \
-    # Required from before
-    pip3 install torch>=2.4.0 --break-system-packages && \ 
-    # pip3 install --upgrade pip --break-system-packages && \
-    pip3 install -r requirements.txt --break-system-packages
+# Clone the Wan2GP repository from GitHub
+RUN git clone https://github.com/deepbeepmeep/Wan2GP.git
 
-# # Pre-download the T2V-1.3B model using Hugging Face CLI
-# RUN cd Wan2.1 && \
-#     pip3 install "huggingface_hub[cli]" --break-system-packages && \
-#     huggingface-cli download Wan-AI/Wan2.1-T2V-14B --local-dir ./Wan2.1-T2V-14B
+# Change working directory into the cloned repository
+WORKDIR /app/Wan2GP
 
-# Set working directory to the WAN-AI repository
-WORKDIR /app/Wan2.1
+# Upgrade pip and install project dependencies
+RUN pip install --upgrade pip
+RUN pip install torch==2.6.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/test/cu124  
+RUN pip install -r requirements.txt
 
-# Create a volume for output videos
+# Set the target CUDA architectures so SageAttention can build without detecting a GPU. 8.0 is for Ampere (A30)
+ENV TORCH_CUDA_ARCH_LIST="8.0"
+
+# # Required triton for SageAttention 2
+# RUN pip install triton
+# # Install SageAttention 2 (for performance boost)
+# RUN git clone https://github.com/thu-ml/SageAttention.git && cd SageAttention && pip install -e .
+RUN pip install flash-attn==2.7.2.post1
+# Create directories for persistent models and outputs,
+# and create symlinks so that model downloads (ckpts) and video outputs (gradio_outputs) are stored on mounted volumes.
+RUN mkdir -p /app/models /app/output \
+    && ln -s /app/models ckpts \
+    && ln -s /app/output gradio_outputs
+
+# Declare volumes so that the external host folders are mounted into the container
 VOLUME ["/app/output"]
-# Create a volume for models
 VOLUME ["/app/models"]
 
-# Default command: open a bash terminal
+# Expose the default Gradio port
+EXPOSE 7860
+
 CMD ["/bin/bash"]

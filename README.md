@@ -1,91 +1,79 @@
-# WAN-AI Docker Container
+# Wan2GP Docker Container (Wan2.1 GP by DeepBeepMeep)
 
-This repository provides a Docker setup for the WAN-AI Text-to-Video model (T2V-1.3B). The container includes a pre-downloaded 1.3B model and all required dependencies so you can quickly generate videos using the WAN-AI model.
+This repository provides a Docker setup for running the enhanced Wan2.1 GP model ([Wan2GP](https://github.com/deepbeepmeep/Wan2GP.git)) by DeepBeepMeep. The container uses an NVIDIA CUDA base image with Python 3.10 and automatically clones the Wan2GP repository from GitHub. It installs all required dependencies, including Flash-Attn, and sets up persistent volumes for model downloads and video outputs.
 
-## Contents
+## Features
 
-- **Dockerfile**: Builds the Docker image with all necessary dependencies and pre-downloads the T2V-1.3B model.
-- **docker_run.sh**: A helper script to run the Docker container using a specified GPU and to mount a host directory for output videos.
-- **README.md**: This file, which explains how to build and use the Docker container and model.
+- **GPU Support:** Uses an NVIDIA CUDA 12.4 base image. Ensure you have the NVIDIA Container Toolkit installed.
+- **Python 3.10:** The container forces Python 3.10 for compatibility.
+- **Wan2GP Repository:** The Dockerfile clones the [Wan2GP](https://github.com/deepbeepmeep/Wan2GP.git) repository and installs all required dependencies.
+- **On-Demand Model Downloads:** When you run the server (with `python gradio_server.py --t2v`), the required model files are automatically downloaded (if not already present) into a persistent volume.
+- **Persistent Outputs:** Generated videos are saved to a mounted volume so they persist across container runs.
+- **Gradio Interface:** The server launches a Gradio web interface on port 7860 where you can configure settings and generate videos.
 
-## 1) How the Docker is Created
+## Directory Structure
 
-To build the Docker image, run the following command from the directory containing the Dockerfile:
+- **Dockerfile:**  
+  - Clones the Wan2GP repository.  
+  - Installs Python 3.10 and required dependencies.  
+  - Installs Flash-Attn.  
+  - Creates persistent folders for models (`/app/models`, symlinked to `ckpts`) and outputs (`/app/output`, symlinked to `gradio_outputs`).
+
+- **docker_build.sh:**  
+  Builds the Docker image and pushes it using the tag `aimilefth/wan2-1-t2v-docker:wan2gp`.
+
+- **docker_run.sh:**  
+  A helper script that runs the container, mounting host directories for outputs and models.
+
+- **gradio_server.py:**  
+  The main server file that downloads models (if needed) and launches the Gradio interface on port 7860.
+
+## Building the Docker Image
+
+Run the following command from the docker directory:
 
 ```bash
 bash docker_build.sh
 ```
+This will build the Docker image using the provided Dockerfile and tag it as `aimilefth/wan2-1-t2v-docker:wan2gp` (adjust the tag if necessary). The build process clones the Wan2GP repository, installs all dependencies, and sets up the environment.
 
-This command performs the following steps:
+## Running the Docker Container
 
-- **Base Image:** Uses an NVIDIA CUDA base image for GPU support.
-- **System Setup**: Installs Python3, pip, and Git.
-- **Repository Clone & Dependencies**: Clones the WAN-AI repository and installs the Python dependencies from requirements.txt.
-- **Default Command**: Sets the container to open a Bash terminal when started.
-
-
-## 2) docker_run.sh Explanation
-
-The `docker_run.sh` script is a convenience tool for running the container with your desired settings.
-Usage
+Use the helper script to run the container:
 
 ```bash
 ./docker_run.sh [GPU_ID] [OUTPUT_DIRECTORY] [MODELS_DIRECTORY]
 ```
-    
-- GPU_ID: The index of the GPU you want to use (e.g., 0, 1, 2). Defaults to 0 if not specified.
-- OUTPUT_DIRECTORY: The host directory where generated videos will be stored. Defaults to ./output in the current directory.
-- MODELS_DIRECTORY: The host directory where models will be stored. Defaults to ./models in the current directory.
 
-The script mounts the specified output directory to `/app/output` inside the container so that any video files saved there are immediately available on your host system.
+- **GPU_ID**: The index of the GPU to use (default is 0).
+- **OUTPUT_DIRECTORY**: The host directory where generated videos will be stored (default: $(pwd)/outputs).
+- **MODELS_DIRECTORY**: The host directory where model files will be stored (default: $(pwd)/models).
 
-
-## 3) How to Use the WAN-AI Model
-
-Once inside the container (after running `docker_run.sh`), you can generate videos with the WAN-AI model by running the `generate.py` script.
-### Example Command
-
-Run the generation command. For example, to generate a video with the T2V-1.3B model at 480P resolution, you might use:
+Once the container is running, you can start the Gradio server by running inside the container:
 
 ```bash
-python generate.py --task t2v-1.3B --size 832*480 --ckpt_dir /app/models/Wan2.1-T2V-1.3B --sample_shift 8 --offload_model True --t5_cpu --sample_guide_scale 6 --prompt "Two anthropomorphic cats in boxing gear fight on a spotlighted stage."
+python gradio_server.py --t2v
 ```
 
-### Saving Output Videos
+This command will:
 
-To keep your generated videos organized:
+- Check if the necessary model files exist in the mounted `/app/models` (symlinked as ckpts). If they are missing, they will be automatically downloaded.
+- Launch the Gradio web interface on port 7860.
 
-1. **Output Directory**: The container mounts `/app/output` to the host, so you can save the video files there.
+Open your web browser and navigate to:
 
-2. **Naming Convention**: After generating a video, rename or move the file to include the prompt (or a summary of it) in the filename. For example:
-
-    ```bash
-    mv generated_video.mp4 /app/output/"Two_anthropomorphic_cats_in_boxing_gear.mp4"
-    ```
-
-    This way, the file name reflects the video’s content. You can modify the `generate.py` script or use a wrapper to automate this renaming if needed.
-
-## Downloading Models
-
-You need huggingface-cli to download the models
-Install it like this
-
-```bash
-pip3 install "huggingface_hub[cli]"
 ```
-
-To download 14B model do:
-```bash
-huggingface-cli download Wan-AI/Wan2.1-T2V-14B --local-dir ./models/Wan2.1-T2V-14B
+http://localhost:7860
 ```
+to configure settings and generate videos.
 
-To download 1.3B model do:
-```bash
-huggingface-cli download Wan-AI/Wan2.1-T2V-1.3B --local-dir ./models/Wan2.1-T2V-1.3B
-```
+## Additional Information
 
-## Final Notes
+- Volumes:
+    The Dockerfile creates and mounts the following directories:
+        `/app/output` (symlinked as gradio_outputs) for video outputs.
+        `/app/models` (symlinked as ckpts) for model downloads.
+        This ensures that large model files and generated videos persist between container runs and keep the Docker image lightweight.
 
-- **GPU Support**: Ensure your Docker installation supports NVIDIA GPUs (using the NVIDIA Container Toolkit).
-- **Customization**: Adjust model parameters and resolution settings as needed based on your hardware and desired output quality.
-- **Troubleshooting**: If you run into issues like GPU memory errors, consider using options such as --offload_model True and --t5_cpu.
+- Network:
+    The `docker_run.sh` script uses `--network=host` so that the Gradio interface is directly accessible on `localhost:7860`.

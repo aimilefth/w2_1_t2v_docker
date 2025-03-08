@@ -1,1 +1,1 @@
-docker build -f ./Dockerfile -t aimilefth/wan2-1-t2v-docker:latest --push .
+docker build -f ./Dockerfile -t aimilefth/wan2-1-t2v-docker:wan2gp --push .

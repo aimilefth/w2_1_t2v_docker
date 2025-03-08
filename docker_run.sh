@@ -14,5 +14,6 @@ mkdir -p "$OUTPUT_DIR"
 docker run --gpus "device=${GPU_ID}" -it --rm \
     -v "$OUTPUT_DIR":/app/output \
     -v "$MODELS_DIR":/app/models \
+    --network=host \
     --pull=always \
-    aimilefth/wan2-1-t2v-docker:latest
+    aimilefth/wan2-1-t2v-docker:wan2gp
