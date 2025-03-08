@@ -23,16 +23,18 @@ RUN git clone https://github.com/Wan-Video/Wan2.1.git && \
     # pip3 install --upgrade pip --break-system-packages && \
     pip3 install -r requirements.txt --break-system-packages
 
-# Pre-download the T2V-1.3B model using Hugging Face CLI
-RUN cd Wan2.1 && \
-    pip3 install "huggingface_hub[cli]" --break-system-packages && \
-    huggingface-cli download Wan-AI/Wan2.1-T2V-1.3B --local-dir ./Wan2.1-T2V-1.3B
+# # Pre-download the T2V-1.3B model using Hugging Face CLI
+# RUN cd Wan2.1 && \
+#     pip3 install "huggingface_hub[cli]" --break-system-packages && \
+#     huggingface-cli download Wan-AI/Wan2.1-T2V-14B --local-dir ./Wan2.1-T2V-14B
 
 # Set working directory to the WAN-AI repository
 WORKDIR /app/Wan2.1
 
 # Create a volume for output videos
 VOLUME ["/app/output"]
+# Create a volume for models
+VOLUME ["/app/models"]
 
 # Default command: open a bash terminal
 CMD ["/bin/bash"]
